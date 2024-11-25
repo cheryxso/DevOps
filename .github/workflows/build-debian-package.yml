@@ -32,6 +32,14 @@ jobs:
           echo "AC_OUTPUT" >> configure.ac
         fi
 
+    - name: Create Makefile.am if not exists
+      run: |
+        if [ ! -f ./Makefile.am ]; then
+          echo "AUTOMAKE_OPTIONS = foreign" > Makefile.am
+          echo "bin_PROGRAMS = my_program" >> Makefile.am
+          echo "my_program_SOURCES = main.cpp FuncA.cpp FuncA.h" >> Makefile.am
+        fi
+
     - name: Generate configure script
       run: autoreconf -i
 
