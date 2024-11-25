@@ -25,6 +25,13 @@ jobs:
         sudo make
         sudo cp lib/*.a /usr/lib
 
+    - name: Ensure necessary files exist
+      run: |
+        if [ ! -f main.cpp ]; then echo "Error: main.cpp not found"; exit 1; fi
+        if [ ! -f FuncA.cpp ]; then echo "Error: FuncA.cpp not found"; exit 1; fi
+        if [ ! -f FuncA.h ]; then echo "Error: FuncA.h not found"; exit 1; fi
+        if [ ! -f test_func_a.cpp ]; then echo "Error: test_func_a.cpp not found"; exit 1; fi
+
     - name: Build the project
       run: |
         g++ -o my_program main.cpp FuncA.cpp -lgtest -lgtest_main -pthread
