@@ -30,18 +30,18 @@ jobs:
     - name: Create debian files
       run: |
         mkdir -p debian
-        echo "Source: my_program" > debian/control
+        echo "Source: myprogram" > debian/control
         echo "Version: 1.0-1" >> debian/control
         echo "Section: misc" >> debian/control
         echo "Priority: optional" >> debian/control
         echo "Architecture: any" >> debian/control
-        echo "Maintainer: Your Name <cheryxso@gmail.com>" >> debian/control
+        echo "Maintainer: Ksenia <cheryxso@gmail.com>" >> debian/control
         echo "Description: My program for creating Debian packages" >> debian/control
 
-        echo "my_program (1.0-1) unstable; urgency=low" > debian/changelog
+        echo "myprogram (1.0-1) unstable; urgency=low" > debian/changelog
         echo "  * Initial release." >> debian/changelog
         echo "" >> debian/changelog
-        echo " -- Your Name <cheryxso@gmail.com>  $(date -R)" >> debian/changelog
+        echo " -- Ksenia <cheryxso@gmail.com>  $(date -R)" >> debian/changelog
 
         echo "9" > debian/compat
 
