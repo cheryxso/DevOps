@@ -17,21 +17,15 @@ jobs:
     - name: Install build tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y autoconf automake libtool build-essential
-
-    - name: Generate configure script
-      run: autoreconf -i
-
-    - name: Configure the project
-      run: ./configure
+        sudo apt-get install -y build-essential
 
     - name: Compile the project
       run: make
 
     - name: Verify binary file
       run: |
-        if [ -f ./my_program ]; then
-          echo "Binary file compiled successfully: ./my_program"
+        if [ -f ./myprogram ]; then
+          echo "Binary file compiled successfully: ./myprogram"
         else
           echo "Error: Binary file was not created!" >&2
           exit 1
