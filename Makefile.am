@@ -1,3 +1,5 @@
+AUTOMAKE_OPTIONS = foreign
 bin_PROGRAMS = myprogram
-myprogram_SOURCES = main.cpp other_source.cpp
-myprogram_LDADD = -lm
+
+program_SOURCES = main.cpp other_source.cpp
+program_LDADD = -lstdc++
