@@ -2,9 +2,9 @@ name: Build Debian Package
 
 on:
   push:
-    branches: [branchAutomake, branchAutoPackage, master]
+    branches: [branchAutoPackage, master]
   pull_request:
-    branches: [branchAutomake, branchAutoPackage, master]
+    branches: [branchAutoPackage, master]
 
 jobs:
   build:
@@ -20,17 +20,33 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential devscripts debhelper fakeroot lintian
-
+        
     - name: Generate configure script
       run: autoreconf -i
 
     - name: Configure the project
       run: ./configure
 
-    - name: Build the project
-      run: make
+    - name: Checkout code from master to download artifacts
+      uses: actions/checkout@v4
+      with:
+        ref: master
 
-    - name: Create debian directory and files
+    - name: List uploaded artifacts
+      run: |
+        ls -l /home/runner/work/_temp/
+
+    - name: Download tarball from artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: myprogram-tarball
+        path: ./ 
+
+    - name: Unpack tarball
+      run: |
+        tar xzf myprogram_1.0.orig.tar.gz
+
+    - name: Create debian files
       run: |
         mkdir -p debian
         echo "Source: myprogram" > debian/control
@@ -52,6 +68,9 @@ jobs:
         echo "%:" >> debian/rules
         echo "\tdh $@" >> debian/rules
         chmod +x debian/rules
+        
+    - name: Build the project
+      run: make
 
     - name: Create Debian package
       run: debuild -us -uc
