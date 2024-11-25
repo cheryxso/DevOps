@@ -2,9 +2,9 @@ name: Build Debian Package
 
 on:
   push:
-    branches: [branchAutoPackage, master]
+    branches: [branchAutomake, branchAutoPackage, master]
   pull_request:
-    branches: [branchAutoPackage, master]
+    branches: [branchAutomake, branchAutoPackage, master]
 
 jobs:
   build:
@@ -30,13 +30,17 @@ jobs:
     - name: Checkout code from branchAutomake for artifact download
       uses: actions/checkout@v4
       with:
-        ref: branchAutomake
+        ref: branchAutomake  
+
+    - name: List uploaded artifacts
+      run: |
+        ls -l /github/workspace/  
 
     - name: Download tarball from artifacts
       uses: actions/download-artifact@v4
       with:
         name: myprogram-tarball
-        path: ./ 
+        path: ./
 
     - name: Unpack tarball
       run: |
