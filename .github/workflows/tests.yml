@@ -19,20 +19,16 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential autoconf automake libtool pkg-config cmake libgtest-dev
-        cd /usr/src/gtest
-        sudo cmake CMakeLists.txt
+        sudo apt-get install -y build-essential libgtest-dev
+        cd /usr/src/googletest
+        sudo cmake .
         sudo make
-        sudo find . -name '*.a' -exec cp {} /usr/lib \;
-
-    - name: Generate configure script
-      run: autoreconf -i
-
-    - name: Configure the project
-      run: ./configure
+        sudo cp lib/*.a /usr/lib
 
     - name: Build the project
-      run: make
+      run: |
+        g++ -o my_program main.cpp FuncA.cpp -lgtest -lgtest_main -pthread
+        g++ -o test_program test_func_a.cpp FuncA.cpp -lgtest -lgtest_main -pthread
 
     - name: Run unit tests
-      run: make check
+      run: ./test_program
