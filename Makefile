@@ -1,16 +1,17 @@
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic
+CC = g++
+CFLAGS = -std=c++11 -Wall
 
-all: program
+SRC = main.cpp FuncA.cpp
+OBJ = $(SRC:.cpp=.o)
+EXEC = myprogram
 
-program: main.o FuncA.o
-	$(CXX) $(CXXFLAGS) -o program main.o FuncA.o
+all: $(EXEC)
 
-main.o: main.cpp FuncA.h
-	$(CXX) $(CXXFLAGS) -c main.cpp
+$(EXEC): $(OBJ)
+	$(CC) $(OBJ) -o $(EXEC)
 
-FuncA.o: FuncA.cpp FuncA.h
-	$(CXX) $(CXXFLAGS) -c FuncA.cpp
+.cpp.o:
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o program
+	rm -f $(OBJ) $(EXEC)
