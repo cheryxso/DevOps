@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout code from branchAutoPackage
       uses: actions/checkout@v4
       with:
         ref: branchAutoPackage
@@ -26,6 +26,11 @@ jobs:
 
     - name: Configure the project
       run: ./configure
+
+    - name: Checkout code from branchAutomake for artifact download
+      uses: actions/checkout@v4
+      with:
+        ref: branchAutomake
 
     - name: Download tarball from artifacts
       uses: actions/download-artifact@v3
