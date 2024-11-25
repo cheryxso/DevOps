@@ -1,0 +1,38 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [branchAutoTest, master]
+  pull_request:
+    branches: [branchAutoTest, master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential autoconf automake libtool pkg-config libgtest-dev
+        cd /usr/src/gtest
+        sudo cmake CMakeLists.txt
+        sudo make
+        sudo cp *.a /usr/lib
+
+    - name: Generate configure script
+      run: autoreconf -i
+
+    - name: Configure the project
+      run: ./configure
+
+    - name: Build the project
+      run: make
+
+    - name: Run unit tests
+      run: make check
