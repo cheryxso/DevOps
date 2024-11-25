@@ -81,7 +81,7 @@ jobs:
 
         echo "#!/usr/bin/make -f" > debian/rules
         echo "%:" >> debian/rules
-        echo "\tdh $@" >> debian/rules
+        echo -e "\tdh \$@" >> debian/rules
         chmod +x debian/rules
 
     - name: Build the Debian package
