@@ -1,23 +1,32 @@
-name: Build and Link Binary
+name: "Build and Link Binary"
 
 on:
   push:
-    branches:
-      - branchMake
+    branches: ["branchMake"]
   pull_request:
-    branches:
-      - branchMake
+    branches: ["branchMake"]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Checkout branchMake
-        run: git checkout branchMake
+      - name: Set up build environment
+        run: |
+          sudo apt-get update && \
+          sudo apt-get install -y build-essential
+
+      - name: Lint Makefile
+        run: make lint
+
+  build:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Set up build environment
         run: |
