@@ -61,11 +61,15 @@ jobs:
         cd ../myprogram-1.0
         mkdir -p debian
         echo "Source: myprogram" > debian/control
-        echo "Version: 1.0-1" >> debian/control
+        echo "Maintainer: Ksenia <cheryxso@gmail.com>" >> debian/control
         echo "Section: misc" >> debian/control
         echo "Priority: optional" >> debian/control
+        echo "Standards-Version: 3.9.6" >> debian/control
+        echo "Build-Depends: debhelper (>= 9), g++" >> debian/control
+        echo "" >> debian/control
+        echo "Package: myprogram" >> debian/control
         echo "Architecture: any" >> debian/control
-        echo "Maintainer: Ksenia <cheryxso@gmail.com>" >> debian/control
+        echo "Depends: \${shlibs:Depends}, \${misc:Depends}" >> debian/control
         echo "Description: My program for creating Debian packages" >> debian/control
         
         echo "myprogram (1.0-1) unstable; urgency=low" > debian/changelog
