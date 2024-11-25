@@ -5,4 +5,4 @@ AC_PROG_RANLIB
 
 AC_CHECK_HEADERS([stdlib.h string.h])
 
-AC_OUTPUT([Makefile])
+AC_OUTPUT
