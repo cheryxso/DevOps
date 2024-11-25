@@ -2,50 +2,42 @@ name: Build Debian Package
 
 on:
   push:
-    branches: [branchAutoPackage, master]
+    branches: [branchAutomake, branchAutoPackage, master]
   pull_request:
-    branches: [branchAutoPackage, master]
+    branches: [branchAutomake, branchAutoPackage, master]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    # Крок 1: Checkout коду з гілки branchAutoPackage
     - name: Checkout code from branchAutoPackage
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0
+        ref: branchAutomake  
 
-    # Крок 2: Інсталяція необхідних інструментів для зборки
+    - name: List files in branchAutomake
+      run: |
+        ls -l
+
     - name: Install build tools
       run: |
         sudo apt-get update
         sudo apt-get install -y autoconf automake libtool build-essential devscripts debhelper curl
 
-    # Крок 3: Перевірка, що ми знаходимося в правильній директорії
-    - name: List files in the repository
-      run: |
-        ls -l
-
-    # Крок 4: Завантажуємо артефакт з попереднього workflow
-    - name: Download tarball from artifacts
-      uses: actions/download-artifact@v4
+    - name: Checkout master branch for tarball
+      uses: actions/checkout@v4
       with:
-        name: myprogram-tarball  # Ім'я артефакту, що створювався в попередньому workflow
-        path: ./  # Шлях для завантаження артефакту
+        ref: branchAutomake  
 
-    # Крок 5: Перевірка наявності файлів після завантаження
-    - name: List files after downloading artifact
+    - name: Download release tarball directly from repo
       run: |
-        ls -l
+        curl -LJO https://github.com/cheryxso/DevOps/releases/download/v1.0/myprogram_1.0.orig.tar.gz
 
-    # Крок 6: Розпаковка архіву
     - name: Unpack tarball
       run: |
         tar xzf myprogram_1.0.orig.tar.gz
 
-    # Крок 7: Створення необхідних Debian файлів
     - name: Create debian files
       run: |
         mkdir -p debian
@@ -66,15 +58,12 @@ jobs:
         echo "\tdh $@" >> debian/rules
         chmod +x debian/rules
 
-    # Крок 8: Побудова проекту
     - name: Build the project
       run: make
 
-    # Крок 9: Створення Debian пакету
     - name: Create Debian package
       run: debuild -us -uc
 
-    # Крок 10: Завантаження готового пакету як артефакту
     - name: Upload Debian Package
       uses: actions/upload-artifact@v4
       with:
