@@ -21,17 +21,20 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential devscripts debhelper fakeroot lintian
 
-    - name: Check if configure script exists
-      run: |
-        if [ ! -f ./configure ]; then
-          echo "configure script not found, skipping autoreconf";
-        else
-          ./configure --disable-dependency-tracking
-        fi
+    - name: Generate configure script
+      run: autoreconf -i
+
+    - name: Configure the project
+      run: ./configure
+
+    - name: Build the project
+      run: make
 
     - name: Create tarball of the project
       run: |
-        tar czf myprogram_1.0.orig.tar.gz myprogram/
+        mkdir -p myprogram_1.0
+        cp -r * myprogram_1.0/
+        tar czf myprogram_1.0.orig.tar.gz myprogram_1.0/
 
     - name: Create debian files
       run: |
@@ -43,11 +46,14 @@ jobs:
         echo "Architecture: any" >> debian/control
         echo "Maintainer: Ksenia <cheryxso@gmail.com>" >> debian/control
         echo "Description: My program for creating Debian packages" >> debian/control
+        
         echo "myprogram (1.0-1) unstable; urgency=low" > debian/changelog
         echo "  * Initial release." >> debian/changelog
         echo "" >> debian/changelog
         echo " -- Ksenia <cheryxso@gmail.com>  $(date -R)" >> debian/changelog
+
         echo "9" > debian/compat
+
         echo "#!/usr/bin/make -f" > debian/rules
         echo "%:" >> debian/rules
         echo "\tdh $@" >> debian/rules
