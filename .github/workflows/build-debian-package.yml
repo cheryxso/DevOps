@@ -20,33 +20,17 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential devscripts debhelper fakeroot lintian
-        
+
     - name: Generate configure script
       run: autoreconf -i
 
     - name: Configure the project
       run: ./configure
 
-    - name: Checkout code from master to download artifacts
-      uses: actions/checkout@v4
-      with:
-        ref: master
+    - name: Build the project
+      run: make
 
-    - name: List uploaded artifacts
-      run: |
-        ls -l /github/workflows/
-
-    - name: Download tarball from artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: myprogram-tarball
-        path: ./ 
-
-    - name: Unpack tarball
-      run: |
-        tar xzf myprogram_1.0.orig.tar.gz
-
-    - name: Create debian files
+    - name: Create debian directory and files
       run: |
         mkdir -p debian
         echo "Source: myprogram" > debian/control
@@ -56,18 +40,18 @@ jobs:
         echo "Architecture: any" >> debian/control
         echo "Maintainer: Ksenia <cheryxso@gmail.com>" >> debian/control
         echo "Description: My program for creating Debian packages" >> debian/control
+        
         echo "myprogram (1.0-1) unstable; urgency=low" > debian/changelog
         echo "  * Initial release." >> debian/changelog
         echo "" >> debian/changelog
         echo " -- Ksenia <cheryxso@gmail.com>  $(date -R)" >> debian/changelog
+
         echo "9" > debian/compat
+
         echo "#!/usr/bin/make -f" > debian/rules
         echo "%:" >> debian/rules
         echo "\tdh $@" >> debian/rules
         chmod +x debian/rules
-        
-    - name: Build the project
-      run: make
 
     - name: Create Debian package
       run: debuild -us -uc
