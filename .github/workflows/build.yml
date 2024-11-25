@@ -13,9 +13,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Switch to branch with configure.ac
-      run: git checkout branchAutomake
 
     - name: Install build tools
       run: |
@@ -34,7 +31,7 @@ jobs:
     - name: Verify binary file
       run: |
         if [ -f ./my_program ]; then
-          echo "Binary file compiled successfully: ./myprogram"
+          echo "Binary file compiled successfully: ./my_program"
         else
           echo "Error: Binary file was not created!" >&2
           exit 1
