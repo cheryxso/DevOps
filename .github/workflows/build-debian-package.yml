@@ -11,31 +11,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code from branchAutoPackage
+    - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: branchAutoPackage
+        fetch-depth: 0 
 
     - name: Install build tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y autoconf automake libtool build-essential devscripts debhelper curl
+        sudo apt-get install -y build-essential devscripts debhelper fakeroot lintian
 
-    - name: Download release tarball
-      run: |
-        curl -LJO https://github.com/cheryxso/DevOps/releases/download/v.1/myprogram-1.0.tar.gz
+    - name: Generate configure script
+      run: autoreconf -i
 
-    - name: Check if tarball is valid gzip
-      run: |
-        file myprogram_1.0.orig.tar.gz
-        if [[ $(file -b myprogram_1.0.orig.tar.gz) != *"gzip compressed data"* ]]; then
-          echo "Error: File is not a valid gzip archive.";
-          exit 1;
-        fi
+    - name: Configure the project
+      run: ./configure --disable-dependency-tracking
 
-    - name: Unpack tarball
+    - name: Create tarball of the project
       run: |
-        tar xzf myprogram_1.0.orig.tar.gz
+        tar czf myprogram_1.0.orig.tar.gz myprogram/
 
     - name: Create debian files
       run: |
@@ -57,14 +51,11 @@ jobs:
         echo "\tdh $@" >> debian/rules
         chmod +x debian/rules
 
-    - name: Build the project
-      run: make
-
-    - name: Create Debian package
+    - name: Build the Debian package
       run: debuild -us -uc
 
-    - name: Upload Debian Package
+    - name: Upload Debian package as an artifact
       uses: actions/upload-artifact@v4
       with:
-        name: myprogram-deb-package
+        name: myprogram-debian-package
         path: ../*.deb
