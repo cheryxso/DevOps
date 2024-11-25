@@ -13,26 +13,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Checkout branchMake
-      run: git checkout branchMake
+      - name: Checkout branchMake
+        run: git checkout branchMake
 
-    - name: Set up build environment
-      run: |
-        sudo apt-get update && \
-        sudo apt-get install -y build-essential
+      - name: Set up build environment
+        run: |
+          sudo apt-get update && \
+          sudo apt-get install -y build-essential
 
-    - name: Build the project with Makefile
-      run: |
-        make clean
-        make
+      - name: Build the project with Makefile
+        run: |
+          make clean
+          make
 
-    - name: Verify if the binary exists
-      run: |
-        if [ ! -f ./program ]; then
-          echo "Error: Binary file was not created!" && exit 1
-        else
-          echo "Success: Binary file is created."
-        fi
+      - name: Verify if the binary exists
+        run: |
+          if [ ! -f ./program ]; then
+            echo "Error: Binary file was not created!" && exit 1
+          else
+            echo "Success: Binary file is created."
+          fi
