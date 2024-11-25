@@ -11,33 +11,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # Крок 1: Checkout коду з гілки branchAutoPackage
     - name: Checkout code from branchAutoPackage
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Switch to branch with configure.ac
-      run: git checkout branchAutoPackage
-
+    # Крок 2: Інсталяція необхідних інструментів для зборки
     - name: Install build tools
       run: |
         sudo apt-get update
         sudo apt-get install -y autoconf automake libtool build-essential devscripts debhelper curl
 
-    - name: Download tarball from artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: myprogram-tarball
-        path: ./
-
-    - name: List files in the current directory (for debugging)
+    # Крок 3: Перевірка, що ми знаходимося в правильній директорії
+    - name: List files in the repository
       run: |
         ls -l
 
+    # Крок 4: Завантажуємо артефакт з попереднього workflow
+    - name: Download tarball from artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: myprogram-tarball  # Ім'я артефакту, що створювався в попередньому workflow
+        path: ./  # Шлях для завантаження артефакту
+
+    # Крок 5: Перевірка наявності файлів після завантаження
+    - name: List files after downloading artifact
+      run: |
+        ls -l
+
+    # Крок 6: Розпаковка архіву
     - name: Unpack tarball
       run: |
         tar xzf myprogram_1.0.orig.tar.gz
 
+    # Крок 7: Створення необхідних Debian файлів
     - name: Create debian files
       run: |
         mkdir -p debian
@@ -58,12 +66,15 @@ jobs:
         echo "\tdh $@" >> debian/rules
         chmod +x debian/rules
 
+    # Крок 8: Побудова проекту
     - name: Build the project
       run: make
 
+    # Крок 9: Створення Debian пакету
     - name: Create Debian package
       run: debuild -us -uc
 
+    # Крок 10: Завантаження готового пакету як артефакту
     - name: Upload Debian Package
       uses: actions/upload-artifact@v4
       with:
