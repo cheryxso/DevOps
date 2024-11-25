@@ -1,0 +1,44 @@
+name: Build Debian Package
+
+on:
+  push:
+    branches: [branchAutoPackage, master]
+  pull_request:
+    branches: [branchAutoPackage, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: branchAutoPackage
+        
+    - name: Set up build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential devscripts debhelper fakeroot lintian
+
+    - name: Generate configure script
+      run: autoreconf -i
+
+    - name: Configure the project
+      run: ./configure
+
+    - name: Build the project
+      run: make
+
+    - name: Create Debian package
+      run: |
+        mkdir -p debian
+        echo "9" > debian/compat
+        dch --create -v 1.0-1 --package myprogram "Initial release."
+        debuild -us -uc
+
+    - name: Upload Debian package as an artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: myprogram-debian-package
+        path: ../*.deb
