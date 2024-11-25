@@ -27,20 +27,20 @@ jobs:
     - name: Configure the project
       run: ./configure
 
-    - name: Checkout code from branchAutomake for artifact download
+    - name: Checkout code from master to download artifacts
       uses: actions/checkout@v4
       with:
-        ref: branchAutomake  
+        ref: master
 
     - name: List uploaded artifacts
       run: |
-        ls -l /github/workspace/  
+        ls -l /github/workspace/
 
     - name: Download tarball from artifacts
       uses: actions/download-artifact@v4
       with:
         name: myprogram-tarball
-        path: ./
+        path: ./ 
 
     - name: Unpack tarball
       run: |
