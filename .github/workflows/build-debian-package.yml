@@ -53,10 +53,12 @@ jobs:
       run: |
         mkdir -p ../myprogram-1.0
         rsync -av --exclude=myprogram-1.0 ./ ../myprogram-1.0/
-        tar czf ../myprogram_1.0.orig.tar.gz -C ../ myprogram-1.0
+        cd ../
+        tar czf myprogram_1.0.orig.tar.gz myprogram-1.0/
 
     - name: Create debian files
       run: |
+        cd ../myprogram-1.0
         mkdir -p debian
         echo "Source: myprogram" > debian/control
         echo "Version: 1.0-1" >> debian/control
@@ -80,7 +82,7 @@ jobs:
 
     - name: Build the Debian package
       run: |
-        cd ..
+        cd ../myprogram-1.0
         debuild -us -uc
 
     - name: Upload Debian package as an artifact
