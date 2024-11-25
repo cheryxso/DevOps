@@ -54,6 +54,12 @@ jobs:
         echo "\tdh $@" >> debian/rules
         chmod +x debian/rules
 
+    - name: Create original tarball
+      run: |
+        mkdir -p myprogram-1.0
+        cp -r * myprogram-1.0/
+        tar czf myprogram_1.0.orig.tar.gz myprogram-1.0/
+
     - name: Build the project
       run: make
 
