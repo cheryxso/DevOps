@@ -25,6 +25,29 @@ jobs:
         sudo make
         sudo find . -name '*.a' -exec cp {} /usr/lib \;
 
+    - name: Create configure.ac if not exists
+      run: |
+        if [ ! -f ./configure.ac ]; then
+          echo "AC_INIT([myprogram], [1.0], [cheryxso@gmail.com])" > configure.ac
+          echo "AM_INIT_AUTOMAKE([foreign])" >> configure.ac
+          echo "AC_PROG_CXX" >> configure.ac
+          echo "AC_PROG_CC" >> configure.ac
+          echo "AC_CHECK_LIB([gtest], [main])" >> configure.ac
+          echo "AC_CONFIG_FILES([Makefile])" >> configure.ac
+          echo "AC_OUTPUT" >> configure.ac
+        fi
+
+    - name: Create Makefile.am if not exists
+      run: |
+        if [ ! -f ./Makefile.am ]; then
+          echo "AUTOMAKE_OPTIONS = foreign" > Makefile.am
+          echo "bin_PROGRAMS = myprogram" >> Makefile.am
+          echo "myprogram_SOURCES = main.cpp FuncA.cpp FuncA.h" >> Makefile.am
+          echo "check_PROGRAMS = test_program" >> Makefile.am
+          echo "test_program_SOURCES = test_func_a.cpp FuncA.cpp FuncA.h" >> Makefile.am
+          echo "test_program_LDADD = -lgtest -lgtest_main -pthread" >> Makefile.am
+        fi
+
     - name: Generate configure script
       run: autoreconf -i
 
