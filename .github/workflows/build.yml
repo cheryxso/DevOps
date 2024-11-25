@@ -3,32 +3,36 @@ name: Build and Link Binary
 on:
   push:
     branches:
-      - branchMake  
+      - branchMake
   pull_request:
     branches:
-      - branchMake  
+      - branchMake
 
 jobs:
   build:
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3  
+      uses: actions/checkout@v3
+
+    - name: Checkout branchMake
+      run: git checkout branchMake
 
     - name: Set up build environment
-      run: sudo apt-get update && sudo apt-get install -y build-essential 
-
-    - name: Build project with Makefile
       run: |
-        make clean  
+        sudo apt-get update && \
+        sudo apt-get install -y build-essential
+
+    - name: Build the project with Makefile
+      run: |
+        make clean
         make
 
-    - name: Check if binary exists
+    - name: Verify if the binary exists
       run: |
-        if [ ! -f ./program ]; then  
-          echo "Binary file not found!"
-          exit 1 
+        if [ ! -f ./program ]; then
+          echo "Error: Binary file was not created!" && exit 1
         else
-          echo "Binary file found: ./program"  
+          echo "Success: Binary file is created."
         fi
