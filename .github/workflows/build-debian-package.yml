@@ -49,7 +49,6 @@ jobs:
         
     - name: Create original tarball
       run: |
-        cd ..
         tar czf myprogram_1.0.orig.tar.gz myprogram/
 
     - name: Build the project
