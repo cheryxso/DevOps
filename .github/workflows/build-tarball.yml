@@ -1,0 +1,44 @@
+name: Build Tarball Distribution
+
+on:
+  push:
+    branches: [branchAutomake, master]
+  pull_request:
+    branches: [branchAutomake, master]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: branchAutomake 
+
+    - name: Switch to branchAutomake
+      run: git checkout branchAutomake
+
+    - name: Set up autotools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y automake autoconf
+
+    - name: Generate configure script
+      run: autoreconf -i
+
+    - name: Configure the project
+      run: ./configure
+
+    - name: Build the project
+      run: make
+
+    - name: Create tarball
+      run: make dist
+
+    - name: Upload tarball as an artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: myprogram-tarball
+        path: "*.tar.gz"
