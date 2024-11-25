@@ -1,4 +1,4 @@
-name: Build Tarball Distribution
+name: Build Tarball
 
 on:
   push:
