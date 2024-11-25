@@ -1,0 +1,34 @@
+name: Build and Link Binary
+
+on:
+  push:
+    branches:
+      - branchMake  
+  pull_request:
+    branches:
+      - branchMake  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3  
+
+    - name: Set up build environment
+      run: sudo apt-get update && sudo apt-get install -y build-essential 
+
+    - name: Build project with Makefile
+      run: |
+        make clean  
+        make
+
+    - name: Check if binary exists
+      run: |
+        if [ ! -f ./program ]; then  
+          echo "Binary file not found!"
+          exit 1 
+        else
+          echo "Binary file found: ./program"  
+        fi
