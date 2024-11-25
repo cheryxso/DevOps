@@ -2,9 +2,9 @@ name: Build Debian Package
 
 on:
   push:
-    branches: [branchAutomake, branchAutoPackage, master]
+    branches: [branchAutoPackage, master]
   pull_request:
-    branches: [branchAutomake, branchAutoPackage, master]
+    branches: [branchAutoPackage, master]
 
 jobs:
   build:
@@ -14,25 +14,24 @@ jobs:
     - name: Checkout code from branchAutoPackage
       uses: actions/checkout@v4
       with:
-        ref: branchAutomake  
-
-    - name: List files in branchAutomake
-      run: |
-        ls -l
+        ref: branchAutoPackage
 
     - name: Install build tools
       run: |
         sudo apt-get update
         sudo apt-get install -y autoconf automake libtool build-essential devscripts debhelper curl
 
-    - name: Checkout master branch for tarball
-      uses: actions/checkout@v4
-      with:
-        ref: branchAutomake  
-
-    - name: Download release tarball directly from repo
+    - name: Download release tarball
       run: |
         curl -LJO https://github.com/cheryxso/DevOps/releases/download/v1.0/myprogram_1.0.orig.tar.gz
+
+    - name: Check if tarball is valid gzip
+      run: |
+        file myprogram_1.0.orig.tar.gz
+        if [[ $(file -b myprogram_1.0.orig.tar.gz) != *"gzip compressed data"* ]]; then
+          echo "Error: File is not a valid gzip archive.";
+          exit 1;
+        fi
 
     - name: Unpack tarball
       run: |
