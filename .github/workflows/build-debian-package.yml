@@ -56,9 +56,7 @@ jobs:
 
     - name: Create original tarball
       run: |
-        mkdir -p myprogram-1.0
-        cp -r * myprogram-1.0/
-        tar czf myprogram_1.0.orig.tar.gz myprogram-1.0/
+        tar czf myprogram_1.0.orig.tar.gz --exclude .git --exclude debian .
 
     - name: Build the project
       run: make
