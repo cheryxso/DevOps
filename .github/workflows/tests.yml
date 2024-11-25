@@ -19,23 +19,20 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential libgtest-dev
-        cd /usr/src/googletest
-        sudo cmake .
+        sudo apt-get install -y build-essential autoconf automake libtool pkg-config cmake libgtest-dev
+        cd /usr/src/gtest
+        sudo cmake CMakeLists.txt
         sudo make
-        sudo cp lib/*.a /usr/lib
+        sudo cp *.a /usr/lib
 
-    - name: Ensure necessary files exist
-      run: |
-        if [ ! -f main.cpp ]; then echo "Error: main.cpp not found"; exit 1; fi
-        if [ ! -f FuncA.cpp ]; then echo "Error: FuncA.cpp not found"; exit 1; fi
-        if [ ! -f FuncA.h ]; then echo "Error: FuncA.h not found"; exit 1; fi
-        if [ ! -f test_func_a.cpp ]; then echo "Error: test_func_a.cpp not found"; exit 1; fi
+    - name: Generate configure script
+      run: autoreconf -i
+
+    - name: Configure the project
+      run: ./configure
 
     - name: Build the project
-      run: |
-        g++ -o my_program main.cpp FuncA.cpp -lgtest -lgtest_main -pthread
-        g++ -o test_program test_func_a.cpp FuncA.cpp -lgtest -lgtest_main -pthread
+      run: make
 
     - name: Run unit tests
-      run: ./test_program
+      run: make check
