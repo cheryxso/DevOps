@@ -1,5 +1,5 @@
 AUTOMAKE_OPTIONS = foreign
 
-bin_PROGRAMS = my_program
+bin_PROGRAMS = myprogram
 
-my_program_SOURCES = main.cpp FuncA.cpp FuncA.h
+myprogram_SOURCES = main.cpp FuncA.cpp FuncA.h
