@@ -27,6 +27,16 @@ jobs:
     - name: Configure the project
       run: ./configure
 
+    - name: Download tarball from artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: myprogram-tarball
+        path: ./ 
+
+    - name: Unpack tarball
+      run: |
+        tar xzf myprogram_1.0.orig.tar.gz
+
     - name: Create debian files
       run: |
         mkdir -p debian
@@ -47,10 +57,6 @@ jobs:
         echo "\tdh $@" >> debian/rules
         chmod +x debian/rules
         
-    - name: Create original tarball
-      run: |
-        tar czf myprogram_1.0.orig.tar.gz myprogram/
-
     - name: Build the project
       run: make
 
