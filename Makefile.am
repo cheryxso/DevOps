@@ -1,6 +1,4 @@
-AUTOMAKE_OPTIONS = foreign
-
-bin_PROGRAMS = myprogram
-myprogram_SOURCES = main.cpp FuncA.cpp FuncA.h
-
-pkgdatadir = ${prefix}/share/myprogram
+check_PROGRAMS = test_funcA
+test_funcA_SOURCES = test_funcA.cpp FuncA.cpp
+test_funcA_CPPFLAGS = -I$(top_srcdir)
+test_funcA_LDADD = $(top_builddir)/libfuncA.a $(GTEST_LIBS)
