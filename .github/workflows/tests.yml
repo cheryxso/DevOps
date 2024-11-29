@@ -2,11 +2,13 @@ name: CI for Unit Tests
 
 on:
   push:
-    branches:
+    branches: 
       - branchAutoTest
+      - master
   pull_request:
-    branches:
+    branches: 
       - branchAutoTest
+      - master
 
 jobs:
   build-and-test:
@@ -15,8 +17,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: branchAutoTest
 
       - name: Verify configure.ac exists
         run: |
