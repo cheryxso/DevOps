@@ -90,7 +90,7 @@ jobs:
         ls -la  # Make sure the .deb file is created
 
     - name: Upload Debian package as an artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
-        name: myprogram-debian-package
-        path: ../myprogram-1.0/*.deb
+        name: my_program-deb-package
+        path: ../*.deb  
