@@ -89,12 +89,10 @@ jobs:
         echo "Listing files after debuild"
         ls -la  # Make sure the .deb file is created
 
-    - name: Change directory to myprogram-1.0 and upload the Debian package as an artifact
-      run: |
-        cd myprogram-1.0
-        echo "Listing files in myprogram-1.0"
-        ls -la  # Ensure .deb file exists in the directory
-        # Upload the .deb file
+    - name: Change directory to myprogram-1.0
+      run: cd myprogram-1.0
+
+    - name: Upload Debian package as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: my_program-deb-package
