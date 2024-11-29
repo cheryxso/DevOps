@@ -93,4 +93,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: my_program-deb-package
-        path: ../*.deb  
+        path: "../myprogram-1.0/*.deb"
