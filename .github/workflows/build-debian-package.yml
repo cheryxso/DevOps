@@ -49,11 +49,6 @@ jobs:
     - name: Build the project
       run: make
 
-    - name: List files after build
-      run: |
-        echo "Listing files in the current directory to ensure .deb file is created"
-        ls -la  # Checking if .deb file exists after the build
-
     - name: Create tarball of the project
       run: |
         mkdir -p ../myprogram-1.0
@@ -93,10 +88,9 @@ jobs:
         debuild -us -uc --no-sign
         echo "Listing files after debuild"
         ls -la  # Make sure the .deb file is created
-        echo "Debian package build completed."
 
     - name: Upload Debian package as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: myprogram-debian-package
-        path: ./myprogram-1.0/*.deb
+        path: ../myprogram-1.0/*.deb
