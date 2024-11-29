@@ -71,7 +71,7 @@ jobs:
         echo "Priority: optional" >> debian/control
         echo "Standards-Version: 3.9.6" >> debian/control
         echo "Build-Depends: debhelper (>= 9), g++" >> debian/control
-        echo "" >> debian/control
+        
         echo "Package: myprogram" >> debian/control
         echo "Architecture: any" >> debian/control
         echo "Depends: \${shlibs:Depends}, \${misc:Depends}" >> debian/control
@@ -81,31 +81,38 @@ jobs:
         echo "  * Initial release." >> debian/changelog
         echo "" >> debian/changelog
         echo " -- Ksenia <cheryxso@gmail.com>  $(date -R)" >> debian/changelog
+        
         echo "9" > debian/compat
         echo "#!/usr/bin/make -f" > debian/rules
         echo "%:" >> debian/rules
         echo -e "\tdh \$@" >> debian/rules
+        
         chmod +x debian/rules
 
     - name: Build the Debian package
       run: |
         cd ../myprogram-1.0
         debuild -us -uc --no-sign
-        echo "Listing files after debuild"
-        ls -la  # Make sure the .deb file was created
+        
+    - name: List files after Debian build 
+      run: |
+        cd ../myprogram-1.0 
+        ls -la  # Check if .deb file was created
 
     - name: Move .deb file to artifact folder
       run: |
-        mkdir -p ./path/to/artifact
-        if ls ../myprogram-1.0/*.deb 1> /dev/null 2>&1; then
+        mkdir -p ./path/to/artifact/
+        
+        if ls ../myprogram-1.0/*.deb 1> /dev/null 2>&1; then 
           mv ../myprogram-1.0/*.deb ./path/to/artifact/
-        else
+          echo ".deb file moved successfully."
+        else 
           echo "No .deb file found."
-          exit 1
-        fi
+          exit 1 
+        fi 
 
-    - name: Upload Debian package as an artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload Debian package as an artifact 
+      uses: actions/upload-artifact@v4 
       with:
-        name: myprogram-debian-package
+        name: myprogram-debian-package 
         path: ./path/to/artifact/*.deb
