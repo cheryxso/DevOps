@@ -49,6 +49,11 @@ jobs:
     - name: Build the project
       run: make
 
+    - name: List files after build
+      run: |
+        echo "Listing files in the parent directory"
+        ls -la  # Checking if .deb file exists
+
     - name: Create tarball of the project
       run: |
         mkdir -p ../myprogram-1.0
@@ -76,9 +81,7 @@ jobs:
         echo "  * Initial release." >> debian/changelog
         echo "" >> debian/changelog
         echo " -- Ksenia <cheryxso@gmail.com>  $(date -R)" >> debian/changelog
-
         echo "9" > debian/compat
-
         echo "#!/usr/bin/make -f" > debian/rules
         echo "%:" >> debian/rules
         echo -e "\tdh \$@" >> debian/rules
@@ -87,10 +90,12 @@ jobs:
     - name: Build the Debian package
       run: |
         cd ../myprogram-1.0
-        debuild -us -uc
+        debuild -us -uc --no-sign
+        echo "Listing files after debuild"
+        ls -la  # Make sure the .deb file was created
 
     - name: Upload Debian package as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: myprogram-debian-package
-        path: "../*.deb"
+        path: myprogram-1.0/*.deb
