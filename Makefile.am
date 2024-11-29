@@ -10,4 +10,4 @@ test_program_LDFLAGS = -pthread
 test_program_LDADD = -lgtest -lgtest_main
 
 tests/test_FuncA.o: tests/test_FuncA.cpp FuncA.h
-<TAB>$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
