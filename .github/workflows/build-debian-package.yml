@@ -49,16 +49,21 @@ jobs:
     - name: Build the project
       run: make
 
+    - name: List files after build
+      run: |
+        echo "Listing files in the current directory to ensure .deb file is created"
+        ls -la  # Checking if .deb file exists after the build
+
     - name: Create tarball of the project
       run: |
-        mkdir -p myprogram-1.0
-        rsync -av --exclude=myprogram-1.0 ./ myprogram-1.0/
+        mkdir -p ../myprogram-1.0
+        rsync -av --exclude=myprogram-1.0 ./ ../myprogram-1.0/
         cd ../
         tar czf myprogram_1.0.orig.tar.gz myprogram-1.0/
 
     - name: Create debian files
       run: |
-        cd myprogram-1.0
+        cd ../myprogram-1.0
         mkdir -p debian
         echo "Source: myprogram" > debian/control
         echo "Maintainer: Ksenia <cheryxso@gmail.com>" >> debian/control
@@ -84,18 +89,14 @@ jobs:
 
     - name: Build the Debian package
       run: |
-        cd myprogram-1.0
+        cd ../myprogram-1.0
         debuild -us -uc --no-sign
         echo "Listing files after debuild"
         ls -la  # Make sure the .deb file is created
+        echo "Debian package build completed."
 
     - name: Upload Debian package as an artifact
       uses: actions/upload-artifact@v4
       with:
-        name: my_program-deb-package
-        path: myprogram-1.0/*.deb  # У цьому випадку потрібно вказати точний шлях до файлу .deb
-
-    - name: List artifacts to confirm upload
-      run: |
-        echo "Uploaded files:"
-        ls -la myprogram-1.0/*.deb
+        name: myprogram-debian-package
+        path: ./myprogram-1.0/*.deb
