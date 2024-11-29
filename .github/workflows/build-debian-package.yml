@@ -51,7 +51,7 @@ jobs:
 
     - name: List files after build
       run: |
-        echo "Listing files after build"
+        echo "Listing files in the current directory"
         ls -la  # Check if .deb file exists
 
     - name: Create tarball of the project
@@ -94,10 +94,15 @@ jobs:
         echo "Listing files after debuild"
         ls -la  # Make sure the .deb file was created
 
-    - name: Prepare artifact directory
+    - name: Move .deb file to artifact folder
       run: |
         mkdir -p ./path/to/artifact
-        mv ../myprogram-1.0/*.deb ./path/to/artifact/
+        if ls ../myprogram-1.0/*.deb 1> /dev/null 2>&1; then
+          mv ../myprogram-1.0/*.deb ./path/to/artifact/
+        else
+          echo "No .deb file found."
+          exit 1
+        fi
 
     - name: Upload Debian package as an artifact
       uses: actions/upload-artifact@v4
