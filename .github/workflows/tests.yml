@@ -2,11 +2,11 @@ name: CI for Unit Tests
 
 on:
   push:
-    branches: 
+    branches:
       - branchAutoTest
       - master
   pull_request:
-    branches: 
+    branches:
       - branchAutoTest
       - master
 
@@ -33,16 +33,17 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential autoconf automake libtool pkg-config cmake
+          sudo apt-get install -y build-essential autoconf automake libtool pkg-config cmake gawk libgtest-dev
 
       - name: Generate configure script
         run: autoreconf -i
 
-      - name: Configure the project
-        run: ./configure
+      - name: Run configure script
+        run: ./configure --disable-dependency-tracking
 
       - name: Build the project
         run: make
 
       - name: Run unit tests
         run: make check
+
