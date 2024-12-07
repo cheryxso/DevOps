@@ -53,8 +53,9 @@ jobs:
       run: |
         mkdir -p myprogram-1.0
         rsync -av --exclude=myprogram-1.0 ./ myprogram-1.0/
-        cd ../
-        tar czf myprogram_1.0.orig.tar.gz myprogram-1.0/
+        tar czf myprogram_1.0.orig.tar.gz myprogram-1.0
+        echo "Tarball created successfully"
+        ls -la myprogram_1.0.orig.tar.gz
 
     - name: Create debian files
       run: |
@@ -81,16 +82,18 @@ jobs:
         echo "%:" >> debian/rules
         echo -e "\tdh \$@" >> debian/rules
         chmod +x debian/rules
+        echo "Debian files created successfully"
+        ls -la debian
 
     - name: Build the Debian package
       run: |
         cd myprogram-1.0
         debuild -us -uc --no-sign
         echo "Listing files after debuild"
-        ls -la  # Make sure the .deb file is created
+        ls -la ../
 
     - name: Upload Debian package as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: my_program-deb-package
-        path: myprogram-1.0/*.deb 
+        path: myprogram_1.0-1_amd64.deb
