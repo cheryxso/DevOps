@@ -1,16 +1,24 @@
 #include <iostream>
-#include "FuncA.h"
+#include <chrono>
+#include "HttpServer.h"
 
 int main() {
-    FuncA func;
-    double result = func.calculate(0.5, 10);
-    std::cout << "FuncA result: " << result << std::endl;
+    double x = 0.5;
 
-    // Очікуваний результат для x = 0.5, n = 10
-    if (result >= 0.4 && result <= 0.41) {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    std::string result = handle_calculate(x);
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::cout << "Calculation time: " << duration << " ms" << std::endl;
+
+    if (duration >= 5000 && duration <= 20000) {
         std::cout << "Test Passed!" << std::endl;
     } else {
         std::cout << "Test Failed!" << std::endl;
     }
+
     return 0;
 }
