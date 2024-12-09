@@ -1,9 +1,9 @@
 CC = g++
 CFLAGS = -std=c++11 -Wall
 
-SRC = main.cpp FuncA.cpp
+SRC = main.cpp FuncA.cpp HttpServer.cpp
 OBJ = $(SRC:.cpp=.o)
-EXEC = myprogram
+EXEC = server
 
 all: $(EXEC)
 
