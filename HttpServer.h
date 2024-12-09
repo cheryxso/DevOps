@@ -6,11 +6,13 @@
 
 class HttpServer {
 public:
-    void start(); // Запускає сервер
+    void start();
+
 private:
-    int determineOptimalN(double x, double targetTime); // Визначає оптимальне n для цільового часу
-    std::vector<double> prepareAndSortData(double x, int n);
-    std::string handleComputeRequest(const std::string& query); // Обробляє /compute запит
+    void handleClient(int client_socket);
+    std::vector<double> prepareAndSortData(int n);
+    std::string handleComputeRequest(int n);
+    int extractParameter(const std::string& request, const std::string& param, int default_value);
 };
 
 #endif
