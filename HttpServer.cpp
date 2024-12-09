@@ -1,7 +1,7 @@
 #include "HttpServer.h"
 #include "FuncA.h"
 #include <iostream>
-#include <chrono>
+#include <sstream>
 #include <thread>
 #include <vector>
 #include <algorithm>
@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <cstring>
 
-#define PORT 8080
+#define PORT 8081
 
 void HttpServer::start() {
     int server_fd, new_socket;
@@ -37,78 +37,85 @@ void HttpServer::start() {
         exit(EXIT_FAILURE);
     }
 
-    if (listen(server_fd, 3) < 0) {
+    if (listen(server_fd, 10) < 0) {
         perror("Listen failed");
         exit(EXIT_FAILURE);
     }
 
-    while (true) {
-        std::cout << "Waiting for connections..." << std::endl;
+    std::cout << "Server started on port " << PORT << std::endl;
 
+    while (true) {
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
             perror("Accept failed");
-            exit(EXIT_FAILURE);
+            continue; 
         }
 
-        char buffer[30000] = {0};
-        read(new_socket, buffer, 30000);
-
-        if (strstr(buffer, "GET /compute")) {
-            std::string query(buffer);
-            std::string response = handleComputeRequest(query);
-            write(new_socket, response.c_str(), response.size());
-        }
-
-        close(new_socket);
+        std::thread(&HttpServer::handleClient, this, new_socket).detach();
     }
 }
 
-int HttpServer::determineOptimalN(double x, double targetTime) {
-    FuncA func;
-    int n = 1000; // Початкове значення
-    double elapsed = 0.0;
+void HttpServer::handleClient(int client_socket) {
+    char buffer[30000] = {0};
+    read(client_socket, buffer, 30000);
 
-    while (elapsed < targetTime) {
-        auto start = std::chrono::high_resolution_clock::now();
-        func.calculate(x, n);
-        auto end = std::chrono::high_resolution_clock::now();
-        elapsed = std::chrono::duration<double>(end - start).count();
-        n *= 2; // Подвоюємо n для наступного тесту
+    std::string request(buffer);
+    std::cout << "Received request: \n" << request << std::endl;
+
+    if (request.find("GET /compute") != std::string::npos) {
+        int n = extractParameter(request, "n", 100);
+        std::string response = handleComputeRequest(n);
+        write(client_socket, response.c_str(), response.size());
+    } else {
+        std::string error_response = "HTTP/1.1 400 Bad Request\nContent-Type: text/plain\n\nInvalid Request\n";
+        write(client_socket, error_response.c_str(), error_response.size());
     }
 
-    return n / 2; // Повертаємо попереднє значення n, що відповідало б часу
+    close(client_socket);
 }
 
-std::vector<double> HttpServer::prepareAndSortData(double x, int n) {
+std::vector<double> HttpServer::prepareAndSortData(int n) {
     FuncA func;
     std::vector<double> data;
 
     for (int i = 1; i <= n; ++i) {
-        data.push_back(func.calculate(x, i));
+        data.push_back(func.calculate(0.5, i));
     }
 
     std::sort(data.begin(), data.end());
     return data;
 }
 
-std::string HttpServer::handleComputeRequest(const std::string& query) {
-    double x = 0.5; // Значення за замовчуванням
-    double targetTime = 10.0; // Цільовий час виконання 10 секунд
-    size_t x_pos = query.find("x=");
-    if (x_pos != std::string::npos) {
-        x = std::stod(query.substr(x_pos + 2));
-    }
-
-    int n = determineOptimalN(x, targetTime);
-
+std::string HttpServer::handleComputeRequest(int n) {
     auto start = std::chrono::high_resolution_clock::now();
-    std::vector<double> sortedData = prepareAndSortData(x, n);
+
+    std::vector<double> sortedData = prepareAndSortData(n);
+
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
-    std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\n\n";
-    response += "Elapsed time: " + std::to_string(elapsed.count()) + " seconds\n";
-    response += "Number of elements: " + std::to_string(sortedData.size()) + "\n";
+    std::ostringstream response;
+    response << "HTTP/1.1 200 OK\nContent-Type: text/plain\n\n";
+    response << "Elapsed time: " << elapsed.count() << " seconds\n";
+    response << "Top 5 values: ";
+    for (size_t i = 0; i < 5 && i < sortedData.size(); ++i) {
+        response << sortedData[i] << " ";
+    }
+    response << "\n";
 
-    return response;
+    return response.str();
+}
+
+int HttpServer::extractParameter(const std::string& request, const std::string& param, int default_value) {
+    size_t param_pos = request.find(param + "=");
+    if (param_pos != std::string::npos) {
+        size_t value_start = param_pos + param.length() + 1;
+        size_t value_end = request.find_first_of(" \r\n", value_start);
+        std::string value_str = request.substr(value_start, value_end - value_start);
+        try {
+            return std::stoi(value_str);
+        } catch (...) {
+            return default_value;
+        }
+    }
+    return default_value;
 }
