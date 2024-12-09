@@ -45,3 +45,4 @@ run_tests: all
 # Команда для запуску сервера
 run_server:
 	./ln_server
+
