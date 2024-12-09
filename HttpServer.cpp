@@ -1,21 +1,103 @@
-#include "HttpServer.h"
-#include "FuncA.h"
 #include <iostream>
+#include <string>
 #include <sstream>
-#include <thread>
 #include <vector>
+#include <chrono>
 #include <algorithm>
+#include <cmath>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <unistd.h>
 #include <cstring>
+#include <cstdlib>
+#include <sys/wait.h>
 
-#define PORT 8081
+#define PORT 8080
+#define BUFFER_SIZE 1024
 
-void HttpServer::start() {
-    int server_fd, new_socket;
+std::vector<double> generate_ln_array(double x, size_t size) {
+    std::vector<double> series(size);
+    for (size_t n = 1; n <= size; ++n) {
+        series[n - 1] = pow(-1, n - 1) * pow(x, n) / n;
+    }
+    return series;
+}
+
+std::string handle_calculate(double x) {
+    const size_t array_size = 2000000; 
+    const int sort_iterations = 500; 
+    auto series = generate_ln_array(x, array_size);
+    
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < sort_iterations; ++i) {
+        std::sort(series.begin(), series.end());
+        std::reverse(series.begin(), series.end()); 
+    }
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+
+    std::ostringstream response_body;
+    response_body << "Array sorted " << sort_iterations << " times in " << duration_ms << " ms.";
+
+    std::ostringstream response;
+    response << "HTTP/1.1 200 OK\r\n"
+             << "Content-Type: text/plain\r\n"
+             << "Content-Length: " << response_body.str().length() << "\r\n"
+             << "\r\n"
+             << response_body.str();
+
+    return response.str();
+}
+
+std::string handle_comput() {
+    const std::string body = "Computer!";
+    std::ostringstream response;
+    response << "HTTP/1.1 200 OK\r\n"
+             << "Content-Type: text/plain\r\n"
+             << "Content-Length: " << body.length() << "\r\n"
+             << "\r\n"
+             << body;
+    return response.str();
+}
+
+void handle_client(int client_fd) {
+    char buffer[BUFFER_SIZE] = {0};
+    read(client_fd, buffer, BUFFER_SIZE);
+
+    std::string request(buffer);
+    std::istringstream request_stream(request);
+    std::string method, resource;
+    request_stream >> method >> resource;
+
+    std::string response;
+
+    if (method == "GET") {
+        if (resource == "/comput") {
+            response = handle_comput();
+        } else if (resource.find("/calculate?x=") == 0) {
+            try {
+                double x = std::stod(resource.substr(14));
+                response = handle_calculate(x);
+            } catch (...) {
+                response = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nInvalid x parameter.";
+            }
+        } else {
+            response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nResource not found.";
+        }
+    } else {
+        response = "HTTP/1.1 405 Method Not Allowed\r\nContent-Type: text/plain\r\n\r\nOnly GET is allowed.";
+    }
+
+    send(client_fd, response.c_str(), response.size(), 0);
+
+    close(client_fd);
+}
+
+int main() {
+    int server_fd, client_fd;
     struct sockaddr_in address;
-    int opt = 1;
     int addrlen = sizeof(address);
 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -23,99 +105,39 @@ void HttpServer::start() {
         exit(EXIT_FAILURE);
     }
 
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("Setsockopt failed");
-        exit(EXIT_FAILURE);
-    }
-
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("Bind failed");
+        close(server_fd);
         exit(EXIT_FAILURE);
     }
 
-    if (listen(server_fd, 10) < 0) {
+    if (listen(server_fd, 3) < 0) {
         perror("Listen failed");
+        close(server_fd);
         exit(EXIT_FAILURE);
     }
 
-    std::cout << "Server started on port " << PORT << std::endl;
+    std::cout << "Server is running on port " << PORT << "...\n";
 
     while (true) {
-        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+        if ((client_fd = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen)) < 0) {
             perror("Accept failed");
-            continue; 
+            continue;
         }
 
-        std::thread(&HttpServer::handleClient, this, new_socket).detach();
-    }
-}
-
-void HttpServer::handleClient(int client_socket) {
-    char buffer[30000] = {0};
-    read(client_socket, buffer, 30000);
-
-    std::string request(buffer);
-    std::cout << "Received request: \n" << request << std::endl;
-
-    if (request.find("GET /compute") != std::string::npos) {
-        int n = extractParameter(request, "n", 100);
-        std::string response = handleComputeRequest(n);
-        write(client_socket, response.c_str(), response.size());
-    } else {
-        std::string error_response = "HTTP/1.1 400 Bad Request\nContent-Type: text/plain\n\nInvalid Request\n";
-        write(client_socket, error_response.c_str(), error_response.size());
-    }
-
-    close(client_socket);
-}
-
-std::vector<double> HttpServer::prepareAndSortData(int n) {
-    FuncA func;
-    std::vector<double> data;
-
-    for (int i = 1; i <= n; ++i) {
-        data.push_back(func.calculate(0.5, i));
-    }
-
-    std::sort(data.begin(), data.end());
-    return data;
-}
-
-std::string HttpServer::handleComputeRequest(int n) {
-    auto start = std::chrono::high_resolution_clock::now();
-
-    std::vector<double> sortedData = prepareAndSortData(n);
-
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-
-    std::ostringstream response;
-    response << "HTTP/1.1 200 OK\nContent-Type: text/plain\n\n";
-    response << "Elapsed time: " << elapsed.count() << " seconds\n";
-    response << "Top 5 values: ";
-    for (size_t i = 0; i < 5 && i < sortedData.size(); ++i) {
-        response << sortedData[i] << " ";
-    }
-    response << "\n";
-
-    return response.str();
-}
-
-int HttpServer::extractParameter(const std::string& request, const std::string& param, int default_value) {
-    size_t param_pos = request.find(param + "=");
-    if (param_pos != std::string::npos) {
-        size_t value_start = param_pos + param.length() + 1;
-        size_t value_end = request.find_first_of(" \r\n", value_start);
-        std::string value_str = request.substr(value_start, value_end - value_start);
-        try {
-            return std::stoi(value_str);
-        } catch (...) {
-            return default_value;
+        if (fork() == 0) {
+            close(server_fd);
+            handle_client(client_fd);
+            exit(0);
+        } else {
+            close(client_fd);
+            waitpid(-1, nullptr, WNOHANG);
         }
     }
-    return default_value;
-}
+
+    close(server_fd);
+  }
