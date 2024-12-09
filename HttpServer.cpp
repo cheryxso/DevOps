@@ -12,7 +12,7 @@
 #include <cstdlib>
 #include <sys/wait.h>
 
-#define PORT 8080
+#define PORT 8081
 #define BUFFER_SIZE 1024
 
 std::vector<double> generate_ln_array(double x, size_t size) {
@@ -24,15 +24,14 @@ std::vector<double> generate_ln_array(double x, size_t size) {
 }
 
 std::string handle_calculate(double x) {
-    const size_t array_size = 2000000; 
-    const int sort_iterations = 500; 
+    const size_t array_size = 1000000;  
+    const int sort_iterations = 300;    
     auto series = generate_ln_array(x, array_size);
-    
+
     auto start_time = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < sort_iterations; ++i) {
         std::sort(series.begin(), series.end());
-        std::reverse(series.begin(), series.end()); 
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -91,7 +90,6 @@ void handle_client(int client_fd) {
     }
 
     send(client_fd, response.c_str(), response.size(), 0);
-
     close(client_fd);
 }
 
@@ -140,4 +138,4 @@ int main() {
     }
 
     close(server_fd);
-  }
+}
