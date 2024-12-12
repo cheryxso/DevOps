@@ -1,10 +1,11 @@
+#include "HttpServer.h"
+#include "FuncA.h"
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 #include <chrono>
 #include <algorithm>
-#include <cmath>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -23,9 +24,9 @@ std::vector<double> generate_ln_array(double x, size_t size) {
     return series;
 }
 
-std::string handle_calculate(double x) {
-    const size_t array_size = 1000000;  
-    const int sort_iterations = 300;    
+std::string HttpServer::handleCalculate(double x) {
+    const size_t array_size = 1000000;
+    const int sort_iterations = 300;
     auto series = generate_ln_array(x, array_size);
 
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -50,18 +51,7 @@ std::string handle_calculate(double x) {
     return response.str();
 }
 
-std::string handle_comput() {
-    const std::string body = "Computer!";
-    std::ostringstream response;
-    response << "HTTP/1.1 200 OK\r\n"
-             << "Content-Type: text/plain\r\n"
-             << "Content-Length: " << body.length() << "\r\n"
-             << "\r\n"
-             << body;
-    return response.str();
-}
-
-void handle_client(int client_fd) {
+void HttpServer::handleClient(int client_fd) {
     char buffer[BUFFER_SIZE] = {0};
     read(client_fd, buffer, BUFFER_SIZE);
 
@@ -73,12 +63,10 @@ void handle_client(int client_fd) {
     std::string response;
 
     if (method == "GET") {
-        if (resource == "/comput") {
-            response = handle_comput();
-        } else if (resource.find("/calculate?x=") == 0) {
+        if (resource.find("/calculate?x=") == 0) {
             try {
                 double x = std::stod(resource.substr(14));
-                response = handle_calculate(x);
+                response = handleCalculate(x);
             } catch (...) {
                 response = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nInvalid x parameter.";
             }
@@ -93,7 +81,7 @@ void handle_client(int client_fd) {
     close(client_fd);
 }
 
-int main() {
+void HttpServer::start() {
     int server_fd, client_fd;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
@@ -129,7 +117,7 @@ int main() {
 
         if (fork() == 0) {
             close(server_fd);
-            handle_client(client_fd);
+            handleClient(client_fd);
             exit(0);
         } else {
             close(client_fd);
