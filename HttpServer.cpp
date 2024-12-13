@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include "FuncA.h"
 
 #define PORT 8081
 #define BUFFER_SIZE 1024
@@ -95,7 +96,6 @@ void handle_client(int client_socket) {
         std::string file_path = "." + request.substr(4, request.find(" ", 4) - 4);
         send_file(client_socket, file_path);
     } else if (request.find("PUT ") != std::string::npos) {
-        // Handle PUT request logic
         std::string file_path = "." + request.substr(4, request.find(" ", 4) - 4);
         std::ofstream file(file_path);
         file << request.substr(request.find("\r\n\r\n") + 4);
@@ -110,12 +110,13 @@ void handle_client(int client_socket) {
 }
 
 std::string compute_response() {
+    FuncA func;
     int n = 1000; 
     std::vector<double> values(n);
 
     for (int i = 0; i < n; ++i) {
         double x = static_cast<double>(i) / n;
-        values[i] = std::log(1 + x);
+        values[i] = func.calculate(x, n);
     }
 
     std::sort(values.begin(), values.end());
