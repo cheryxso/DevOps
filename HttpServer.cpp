@@ -1,169 +1,146 @@
 #include <iostream>
-#include <fstream>
 #include <string>
-#include <cstring>
+#include <thread>
 #include <vector>
-#include <algorithm>
 #include <chrono>
-#include <sys/socket.h>
+#include <cmath>
+#include <algorithm>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <cmath>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 
 #define PORT 8081
+#define BUFFER_SIZE 1024
 
-class HttpServer {
-public:
-    void start() {
-        int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-        if (serverSocket == 0) {
-            perror("Socket creation failed");
-            exit(EXIT_FAILURE);
-        }
-
-        struct sockaddr_in address;
-        address.sin_family = AF_INET;
-        address.sin_addr.s_addr = INADDR_ANY;
-        address.sin_port = htons(PORT);
-
-        if (bind(serverSocket, (struct sockaddr*)&address, sizeof(address)) < 0) {
-            perror("Bind failed");
-            close(serverSocket);
-            exit(EXIT_FAILURE);
-        }
-
-        if (listen(serverSocket, 10) < 0) {
-            perror("Listen failed");
-            close(serverSocket);
-            exit(EXIT_FAILURE);
-        }
-
-        std::cout << "Server started on port " << PORT << std::endl;
-
-        while (true) {
-            int clientSocket;
-            socklen_t addrLen = sizeof(address);
-            if ((clientSocket = accept(serverSocket, (struct sockaddr*)&address, &addrLen)) < 0) {
-                perror("Accept failed");
-                continue;
-            }
-
-            if (fork() == 0) { 
-                close(serverSocket);
-                handleClient(clientSocket);
-                close(clientSocket);
-                exit(0);
-            }
-
-            close(clientSocket); 
-        }
-
-        close(serverSocket);
-    }
-
-private:
-    void handleClient(int clientSocket) {
-        char buffer[1024] = {0};
-        read(clientSocket, buffer, 1024);
-
-        std::string request(buffer);
-        std::cout << "Received request:\n" << request << std::endl;
-
-        std::string method = parseMethod(request);
-        std::string path = parsePath(request);
-
-        if (method == "GET") {
-            handleGet(clientSocket, path);
-        } else if (method == "PUT") {
-            handlePut(clientSocket, path, request);
-        } else {
-            sendResponse(clientSocket, "400 Bad Request", "Unsupported HTTP method");
-        }
-    }
-
-    std::string parseMethod(const std::string& request) {
-        size_t pos = request.find(' ');
-        return request.substr(0, pos);
-    }
-
-    std::string parsePath(const std::string& request) {
-        size_t start = request.find(' ') + 1;
-        size_t end = request.find(' ', start);
-        return request.substr(start, end - start);
-    }
-
-    void handleGet(int clientSocket, const std::string& path) {
-        if (path == "/compute") {
-            auto start = std::chrono::high_resolution_clock::now();
-
-            std::vector<double> values;
-            for (int i = 1; i <= 5000000; ++i) {
-                values.push_back(computeLn(1.0 / i));
-            }
-
-            std::sort(values.begin(), values.end());
-
-            auto end = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-
-            sendResponse(clientSocket, "200 OK", "Computation took: " + std::to_string(duration.count()) + " ms");
-        } else {
-            std::string filePath = "." + path;
-            sendFileResponse(clientSocket, filePath);
-        }
-    }
-
-    void handlePut(int clientSocket, const std::string& path, const std::string& request) {
-        size_t bodyPos = request.find("\r\n\r\n") + 4;
-        std::string body = request.substr(bodyPos);
-
-        std::string filePath = "." + path;
-        std::ofstream outFile(filePath);
-        if (outFile.is_open()) {
-            outFile << body;
-            outFile.close();
-            sendResponse(clientSocket, "201 Created", "File created successfully");
-        } else {
-            sendResponse(clientSocket, "500 Internal Server Error", "Failed to create file");
-        }
-    }
-
-    void sendFileResponse(int clientSocket, const std::string& filePath) {
-        int file = open(filePath.c_str(), O_RDONLY);
-        if (file < 0) {
-            sendResponse(clientSocket, "404 Not Found", "File not found");
-            return;
-        }
-
-        struct stat statBuf;
-        fstat(file, &statBuf);
-
-        std::string header = "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(statBuf.st_size) + "\r\n\r\n";
-        send(clientSocket, header.c_str(), header.size(), 0);
-
-        off_t offset = 0;
-        sendfile(clientSocket, file, &offset, statBuf.st_size);
-        close(file);
-    }
-
-    void sendResponse(int clientSocket, const std::string& status, const std::string& body) {
-        std::string response = "HTTP/1.1 " + status + "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
-        send(clientSocket, response.c_str(), response.size(), 0);
-    }
-
-    double computeLn(double x) {
-        double sum = 0.0;
-        for (int n = 1; n <= 100; ++n) {
-            sum += std::pow(-1, n - 1) * std::pow(x, n) / n;
-        }
-        return sum;
-    }
-};
+void handle_client(int client_socket);
+std::string compute_response();
+void send_file(int client_socket, const std::string& file_path);
 
 int main() {
-    HttpServer server;
-    server.start();
+    int server_socket, client_socket;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t addr_len = sizeof(client_addr);
+
+    server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
+
+    if (bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+        perror("Socket bind failed");
+        close(server_socket);
+        return 1;
+    }
+
+    if (listen(server_socket, 5) == -1) {
+        perror("Socket listen failed");
+        close(server_socket);
+        return 1;
+    }
+
+    while (true) {
+        client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &addr_len);
+        if (client_socket == -1) {
+            perror("Client accept failed");
+            continue;
+        }
+
+        if (fork() == 0) {
+            close(server_socket);
+            handle_client(client_socket);
+            close(client_socket);
+            exit(0);
+        } else {
+            close(client_socket);
+            waitpid(-1, NULL, WNOHANG);
+        }
+    }
+
+    close(server_socket);
     return 0;
+}
+
+void handle_client(int client_socket) {
+    char buffer[BUFFER_SIZE];
+    std::string request;
+
+    int bytes_received = read(client_socket, buffer, BUFFER_SIZE);
+    if (bytes_received < 0) {
+        perror("Failed to read from socket");
+        return;
+    }
+
+    request = std::string(buffer, bytes_received);
+
+    if (request.find("GET /compute") != std::string::npos) {
+        auto start = std::chrono::high_resolution_clock::now();
+        std::string response_body = compute_response();
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+
+        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n";
+        response += "Elapsed time: " + std::to_string(elapsed.count()) + " seconds\n";
+        response += response_body;
+
+        write(client_socket, response.c_str(), response.length());
+    } else if (request.find("GET ") != std::string::npos) {
+        std::string file_path = "." + request.substr(4, request.find(" ", 4) - 4);
+        send_file(client_socket, file_path);
+    } else if (request.find("PUT ") != std::string::npos) {
+        // Handle PUT request logic
+        std::string file_path = "." + request.substr(4, request.find(" ", 4) - 4);
+        std::ofstream file(file_path);
+        file << request.substr(request.find("\r\n\r\n") + 4);
+        file.close();
+
+        std::string response = "HTTP/1.1 201 Created\r\n\r\n";
+        write(client_socket, response.c_str(), response.length());
+    } else {
+        std::string response = "HTTP/1.1 404 Not Found\r\n\r\n";
+        write(client_socket, response.c_str(), response.length());
+    }
+}
+
+std::string compute_response() {
+    int n = 1000; 
+    std::vector<double> values(n);
+
+    for (int i = 0; i < n; ++i) {
+        double x = static_cast<double>(i) / n;
+        values[i] = std::log(1 + x);
+    }
+
+    std::sort(values.begin(), values.end());
+
+    std::string result;
+    for (double value : values) {
+        result += std::to_string(value) + "\n";
+    }
+
+    return result;
+}
+
+void send_file(int client_socket, const std::string& file_path) {
+    int file = open(file_path.c_str(), O_RDONLY);
+    if (file == -1) {
+        std::string response = "HTTP/1.1 404 Not Found\r\n\r\n";
+        write(client_socket, response.c_str(), response.length());
+        return;
+    }
+
+    char buffer[BUFFER_SIZE];
+    int bytes_read;
+    while ((bytes_read = read(file, buffer, BUFFER_SIZE)) > 0) {
+        write(client_socket, buffer, bytes_read);
+    }
+
+    close(file);
 }
