@@ -8,8 +8,9 @@ public:
     void start();
 
 private:
-    void handleClient(int client_fd);
-    std::string handleCalculate(double x);
+    void handleClient(int client_socket);
+    std::string compute_response();
+    void send_file(int client_socket, const std::string& file_path);
 };
 
 #endif
