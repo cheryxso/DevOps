@@ -1,9 +1,9 @@
 CC = g++
-CFLAGS = -std=c++11 -Wall
+CFLAGS = -std=c++11 -Wall -lpthread
 
-SRC = main.cpp FuncA.cpp
+SRC = main.cpp FuncA.cpp HTTPServer.cpp
 OBJ = $(SRC:.cpp=.o)
-EXEC = myprogram
+EXEC = http_server
 
 all: $(EXEC)
 
