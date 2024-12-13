@@ -1,30 +1,35 @@
 #include <iostream>
-#include <fstream>
-#include <vector>
-#include <cmath>
-#include <algorithm>
-#include <chrono>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <unistd.h>
+#include <netinet/in.h>
 #include <cstring>
 #include <fcntl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <vector>
+#include <chrono>
+#include <algorithm>
+#include <random>
 
 #define PORT 8081
 
-void handleGetCompute(int clientSocket);
+void handleClient(int clientSocket);
 void handleGetFile(int clientSocket, const std::string &filePath);
-void handlePutRequest(int clientSocket, const std::string &filePath, const std::string &body);
+void handleCompute(int clientSocket);
 
 int main() {
     int serverSocket, clientSocket;
     struct sockaddr_in address;
+    int opt = 1;
     int addrlen = sizeof(address);
 
+    // Create socket
     if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Attach socket to port
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt failed");
         exit(EXIT_FAILURE);
     }
 
@@ -32,93 +37,67 @@ int main() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
+    // Bind socket to the address
     if (bind(serverSocket, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("Bind failed");
-        close(serverSocket);
         exit(EXIT_FAILURE);
     }
 
+    // Start listening
     if (listen(serverSocket, 10) < 0) {
         perror("Listen failed");
-        close(serverSocket);
         exit(EXIT_FAILURE);
     }
 
+    std::cout << "Server listening on port " << PORT << std::endl;
+
     while (true) {
-        std::cout << "Waiting for connections on port " << PORT << "..." << std::endl;
-        if ((clientSocket = accept(serverSocket, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+        std::cout << "Waiting for a connection..." << std::endl;
+
+        if ((clientSocket = accept(serverSocket, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
             perror("Accept failed");
-            continue;
+            exit(EXIT_FAILURE);
         }
 
-        int pid = fork();
-        if (pid < 0) {
-            perror("Fork failed");
-            close(clientSocket);
-            continue;
-        }
-
+        pid_t pid = fork();
         if (pid == 0) { // Child process
             close(serverSocket);
-
-            char buffer[30000] = {0};
-            int bytesRead = read(clientSocket, buffer, sizeof(buffer));
-            if (bytesRead <= 0) {
-                close(clientSocket);
-                exit(0);
-            }
-
-            std::string request(buffer);
-            size_t methodEnd = request.find(' ');
-            size_t pathEnd = request.find(' ', methodEnd + 1);
-
-            std::string method = request.substr(0, methodEnd);
-            std::string path = request.substr(methodEnd + 1, pathEnd - methodEnd - 1);
-
-            if (method == "GET") {
-                if (path == "/compute") {
-                    handleGetCompute(clientSocket);
-                } else {
-                    handleGetFile(clientSocket, "." + path);
-                }
-            } else if (method == "PUT") {
-                size_t bodyPos = request.find("\r\n\r\n") + 4;
-                std::string body = request.substr(bodyPos);
-                handlePutRequest(clientSocket, "." + path, body);
-            } else {
-                std::string response = "HTTP/1.1 400 Bad Request\r\n\r\n";
-                send(clientSocket, response.c_str(), response.size(), 0);
-            }
-
+            handleClient(clientSocket);
             close(clientSocket);
             exit(0);
-        } else { // Parent process
+        } else if (pid > 0) {
             close(clientSocket);
+        } else {
+            perror("Fork failed");
+            exit(EXIT_FAILURE);
         }
     }
 
-    close(serverSocket);
     return 0;
 }
 
-void handleGetCompute(int clientSocket) {
-    auto start = std::chrono::high_resolution_clock::now();
+void handleClient(int clientSocket) {
+    char buffer[4096] = {0};
+    read(clientSocket, buffer, sizeof(buffer));
 
-    const int n = 1000000;
-    const double x = 0.5;
-    std::vector<double> values(n);
+    std::string request(buffer);
+    std::cout << "Received request:\n" << request << std::endl;
 
-    for (int i = 1; i <= n; ++i) {
-        values[i - 1] = pow(-1, i - 1) * pow(x, i) / i;
+    std::string method = request.substr(0, request.find(' '));
+    std::string path = request.substr(request.find(' ') + 1);
+    path = path.substr(0, path.find(' '));
+
+    if (method == "GET") {
+        if (path == "/compute") {
+            handleCompute(clientSocket);
+        } else {
+            std::string filePath = "." + path;
+            handleGetFile(clientSocket, filePath);
+        }
+    } else {
+        std::string response = "HTTP/1.1 405 Method Not Allowed\r\n\r\n";
+        send(clientSocket, response.c_str(), response.size(), 0);
     }
-
-    std::sort(values.begin(), values.end());
-
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-
-    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nTime elapsed: " + std::to_string(elapsed.count()) + " seconds\n";
-    send(clientSocket, response.c_str(), response.size(), 0);
 }
 
 void handleGetFile(int clientSocket, const std::string &filePath) {
@@ -132,24 +111,45 @@ void handleGetFile(int clientSocket, const std::string &filePath) {
     struct stat statBuf;
     fstat(file, &statBuf);
 
-    std::string response = "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(statBuf.st_size) + "\r\n\r\n";
-    send(clientSocket, response.c_str(), response.size(), 0);
+    std::string header = "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(statBuf.st_size) + "\r\n\r\n";
+    send(clientSocket, header.c_str(), header.size(), 0);
 
-    sendfile(clientSocket, file, nullptr, statBuf.st_size);
+    char buffer[4096];
+    ssize_t bytesRead;
+    while ((bytesRead = read(file, buffer, sizeof(buffer))) > 0) {
+        send(clientSocket, buffer, bytesRead, 0);
+    }
+
     close(file);
 }
 
-void handlePutRequest(int clientSocket, const std::string &filePath, const std::string &body) {
-    int file = open(filePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (file < 0) {
-        std::string response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
-        send(clientSocket, response.c_str(), response.size(), 0);
-        return;
+void handleCompute(int clientSocket) {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    const int n = 1000000; // Number of values to compute
+    std::vector<double> values(n);
+
+    // Generate random values
+    std::mt19937 gen(12345);
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    for (int i = 0; i < n; ++i) {
+        values[i] = dis(gen);
     }
 
-    write(file, body.c_str(), body.size());
-    close(file);
+    // Compute series
+    for (double &x : values) {
+        x = 0.0;
+        for (int k = 1; k <= 100; ++k) {
+            x += (k % 2 == 0 ? -1 : 1) * std::pow(x, k) / k;
+        }
+    }
 
-    std::string response = "HTTP/1.1 201 Created\r\n\r\n";
+    std::sort(values.begin(), values.end());
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    std::string body = "Computation time: " + std::to_string(duration) + " ms\n";
+    std::string response = "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
     send(clientSocket, response.c_str(), response.size(), 0);
 }
