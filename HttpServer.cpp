@@ -1,257 +1,155 @@
 #include <iostream>
-#include <string>
-#include <cstring>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <chrono>
+#include <fstream>
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <sstream>
+#include <chrono>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <cstring>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-const int PORT = 8081;
+#define PORT 8081
 
-void send_response(int client_socket, int status_code, const std::string& content_type, const std::string& content);
-void handle_request(int client_socket);
-void handle_get_compute(int client_socket);
-void handle_get_file(int client_socket, const std::string& path);
-void handle_put(int client_socket, const std::string& path, const std::string& body);
-std::string get_mime_type(const std::string& filename);
+void handleGetCompute(int clientSocket);
+void handleGetFile(int clientSocket, const std::string &filePath);
+void handlePutRequest(int clientSocket, const std::string &filePath, const std::string &body);
 
 int main() {
-    int server_socket;
-    struct sockaddr_in server_addr;
-    socklen_t addr_size = sizeof(server_addr);
+    int serverSocket, clientSocket;
+    struct sockaddr_in address;
+    int addrlen = sizeof(address);
 
-    server_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_socket < 0) {
+    if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
 
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(PORT);
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
 
-    if (bind(server_socket, (struct sockaddr*)&server_addr, addr_size) < 0) {
+    if (bind(serverSocket, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("Bind failed");
-        close(server_socket);
+        close(serverSocket);
         exit(EXIT_FAILURE);
     }
 
-    if (listen(server_socket, 10) < 0) {
+    if (listen(serverSocket, 10) < 0) {
         perror("Listen failed");
-        close(server_socket);
+        close(serverSocket);
         exit(EXIT_FAILURE);
     }
-
-    std::cout << "Server is listening on port " << PORT << std::endl;
 
     while (true) {
-        int client_socket = accept(server_socket, (struct sockaddr*)&server_addr, &addr_size);
-        if (client_socket < 0) {
+        std::cout << "Waiting for connections on port " << PORT << "..." << std::endl;
+        if ((clientSocket = accept(serverSocket, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
             perror("Accept failed");
             continue;
         }
 
-        pid_t pid = fork();
+        int pid = fork();
         if (pid < 0) {
             perror("Fork failed");
-            close(client_socket);
+            close(clientSocket);
             continue;
-        } else if (pid == 0) {
-            // Child process
-            close(server_socket); // Close the listening socket in child
-            handle_request(client_socket);
-            close(client_socket);
-            exit(EXIT_SUCCESS);
-        } else {
-            // Parent process
-            close(client_socket); // Close the client socket in parent
+        }
+
+        if (pid == 0) { // Child process
+            close(serverSocket);
+
+            char buffer[30000] = {0};
+            int bytesRead = read(clientSocket, buffer, sizeof(buffer));
+            if (bytesRead <= 0) {
+                close(clientSocket);
+                exit(0);
+            }
+
+            std::string request(buffer);
+            size_t methodEnd = request.find(' ');
+            size_t pathEnd = request.find(' ', methodEnd + 1);
+
+            std::string method = request.substr(0, methodEnd);
+            std::string path = request.substr(methodEnd + 1, pathEnd - methodEnd - 1);
+
+            if (method == "GET") {
+                if (path == "/compute") {
+                    handleGetCompute(clientSocket);
+                } else {
+                    handleGetFile(clientSocket, "." + path);
+                }
+            } else if (method == "PUT") {
+                size_t bodyPos = request.find("\r\n\r\n") + 4;
+                std::string body = request.substr(bodyPos);
+                handlePutRequest(clientSocket, "." + path, body);
+            } else {
+                std::string response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+                send(clientSocket, response.c_str(), response.size(), 0);
+            }
+
+            close(clientSocket);
+            exit(0);
+        } else { // Parent process
+            close(clientSocket);
         }
     }
 
-    close(server_socket);
+    close(serverSocket);
     return 0;
 }
 
-void handle_request(int client_socket) {
-    char buffer[4096];
-    std::string request;
-    int bytes_received;
-
-    while ((bytes_received = recv(client_socket, buffer, sizeof(buffer), 0)) > 0) {
-        request.append(buffer, bytes_received);
-        if (request.find("\r\n\r\n") != std::string::npos)
-            break;
-    }
-
-    if (bytes_received < 0) {
-        perror("Error receiving data");
-        return;
-    }
-
-    if (request.empty()) {
-        send_response(client_socket, 400, "text/plain", "Bad Request");
-        return;
-    }
-
-    size_t pos = request.find(' ');
-    if (pos == std::string::npos) {
-        send_response(client_socket, 400, "text/plain", "Bad Request");
-        return;
-    }
-    std::string method = request.substr(0, pos);
-    size_t pos2 = request.find(' ', pos + 1);
-    if (pos2 == std::string::npos) {
-        send_response(client_socket, 400, "text/plain", "Bad Request");
-        return;
-    }
-    std::string path = request.substr(pos + 1, pos2 - pos - 1);
-
-    if (method == "GET") {
-        if (path == "/compute") {
-            handle_get_compute(client_socket);
-        } else {
-            handle_get_file(client_socket, path);
-        }
-    } else if (method == "PUT") {
-        size_t header_end = request.find("\r\n\r\n");
-        if (header_end == std::string::npos) {
-            send_response(client_socket, 400, "text/plain", "Bad Request");
-            return;
-        }
-        size_t content_start = header_end + 4;
-        std::string body = request.substr(content_start);
-        handle_put(client_socket, path, body);
-    } else {
-        send_response(client_socket, 405, "text/plain", "Method Not Allowed");
-    }
-}
-
-void send_response(int client_socket, int status_code, const std::string& content_type, const std::string& content) {
-    std::string response;
-    std::string status_line;
-
-    switch (status_code) {
-        case 200:
-            status_line = "HTTP/1.1 200 OK\r\n";
-            break;
-        case 201:
-            status_line = "HTTP/1.1 201 Created\r\n";
-            break;
-        case 404:
-            status_line = "HTTP/1.1 404 Not Found\r\n";
-            break;
-        case 400:
-            status_line = "HTTP/1.1 400 Bad Request\r\n";
-            break;
-        case 500:
-            status_line = "HTTP/1.1 500 Internal Server Error\r\n";
-            break;
-        case 405:
-            status_line = "HTTP/1.1 405 Method Not Allowed\r\n";
-            break;
-        default:
-            status_line = "HTTP/1.1 500 Internal Server Error\r\n";
-            break;
-    }
-
-    response = status_line +
-               "Content-Type: " + content_type + "\r\n" +
-               "Content-Length: " + std::to_string(content.size()) + "\r\n" +
-               "Connection: close\r\n\r\n" +
-               content;
-
-    send(client_socket, response.c_str(), response.size(), 0);
-}
-
-void handle_get_compute(int client_socket) {
+void handleGetCompute(int clientSocket) {
     auto start = std::chrono::high_resolution_clock::now();
 
-    const int num_x_values = 9;
-    const int num_terms = 1000;
-    std::vector<double> results;
+    const int n = 1000000;
+    const double x = 0.5;
+    std::vector<double> values(n);
 
-    for (double x = 0.1; x < 1.0; x += 0.1) {
-        double sum = 0.0;
-        for (int n = 0; n < num_terms; ++n) {
-            sum += pow(-1, n) * pow(x, n + 1) / (n + 1);
-        }
-        results.push_back(sum);
+    for (int i = 1; i <= n; ++i) {
+        values[i - 1] = pow(-1, i - 1) * pow(x, i) / i;
     }
 
-    std::sort(results.begin(), results.end());
+    std::sort(values.begin(), values.end());
 
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::chrono::duration<double> elapsed = end - start;
 
-    std::ostringstream oss;
-    oss << duration << " milliseconds";
-
-    send_response(client_socket, 200, "text/plain", oss.str());
+    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nTime elapsed: " + std::to_string(elapsed.count()) + " seconds\n";
+    send(clientSocket, response.c_str(), response.size(), 0);
 }
 
-void handle_get_file(int client_socket, const std::string& path) {
-    if (path == "/") {
-        path = "/index.html";
-    }
-
-    std::string file_path = "." + path;
-    std::ifstream file(file_path, std::ios::binary);
-    if (!file.is_open()) {
-        send_response(client_socket, 404, "text/plain", "File not found");
+void handleGetFile(int clientSocket, const std::string &filePath) {
+    int file = open(filePath.c_str(), O_RDONLY);
+    if (file < 0) {
+        std::string response = "HTTP/1.1 404 Not Found\r\n\r\n";
+        send(clientSocket, response.c_str(), response.size(), 0);
         return;
     }
 
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
+    struct stat statBuf;
+    fstat(file, &statBuf);
 
-    std::string mime_type = get_mime_type(file_path);
+    std::string response = "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(statBuf.st_size) + "\r\n\r\n";
+    send(clientSocket, response.c_str(), response.size(), 0);
 
-    send_response(client_socket, 200, mime_type, content);
+    sendfile(clientSocket, file, nullptr, statBuf.st_size);
+    close(file);
 }
 
-void handle_put(int client_socket, const std::string& path, const std::string& body) {
-    if (path.find("..") != std::string::npos) {
-        send_response(client_socket, 400, "text/plain", "Bad Request");
+void handlePutRequest(int clientSocket, const std::string &filePath, const std::string &body) {
+    int file = open(filePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (file < 0) {
+        std::string response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
+        send(clientSocket, response.c_str(), response.size(), 0);
         return;
     }
 
-    std::string file_path = "." + path;
-    std::ofstream file(file_path, std::ios::binary);
-    if (!file.is_open()) {
-        send_response(client_socket, 500, "text/plain", "Internal Server Error");
-        return;
-    }
+    write(file, body.c_str(), body.size());
+    close(file);
 
-    file << body;
-    file.close();
-
-    send_response(client_socket, 201, "text/plain", "File created/updated");
-}
-
-std::string get_mime_type(const std::string& filename) {
-    std::string extension = filename.substr(filename.find_last_of(".") + 1);
-    if (extension == "html" || extension == "htm")
-        return "text/html";
-    else if (extension == "css")
-        return "text/css";
-    else if (extension == "js")
-        return "application/javascript";
-    else if (extension == "jpg" || extension == "jpeg")
-        return "image/jpeg";
-    else if (extension == "png")
-        return "image/png";
-    else if (extension == "gif")
-        return "image/gif";
-    else if (extension == "ico")
-        return "image/x-icon";
-    else
-        return "application/octet-stream";
+    std::string response = "HTTP/1.1 201 Created\r\n\r\n";
+    send(clientSocket, response.c_str(), response.size(), 0);
 }
