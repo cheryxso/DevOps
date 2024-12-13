@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 
 bin_PROGRAMS = http_server
-http_server_SOURCES = main.cpp FuncA.cpp HTTPServer.cpp FuncA.h HTTPServer.h
+http_server_SOURCES = FuncA.cpp HTTPServer.cpp FuncA.h HTTPServer.h
 
 check_PROGRAMS = test_program
 test_program_SOURCES = tests/test_FuncA.cpp FuncA.cpp FuncA.h
