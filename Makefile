@@ -1,7 +1,7 @@
 CC = g++
 CFLAGS = -std=c++11 -Wall -lpthread
 
-SRC = main.cpp FuncA.cpp HTTPServer.cpp
+SRC = FuncA.cpp HTTPServer.cpp
 OBJ = $(SRC:.cpp=.o)
 EXEC = http_server
 
